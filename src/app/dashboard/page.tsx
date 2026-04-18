@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import api from "../lib/deriv";
+import { getApi } from "../lib/deriv";
 
 export default function Dashboard() {
   const [status, setStatus] = useState("Not Connected");
@@ -12,8 +12,9 @@ export default function Dashboard() {
     if (!token) return;
     setStatus("Connecting...");
     try {
-      await api.authorize(token);
-      const acct = await api.balance();
+      const apiInstance = getApi();
+      await apiInstance.authorize(token);
+      const acct = await apiInstance.balance();
       setBalance(acct.balance);
       setStatus("Connected");
     } catch (e) {
