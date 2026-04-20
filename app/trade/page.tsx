@@ -1,73 +1,100 @@
-import Link from "next/link";
+"use client";
+
+import { useEffect, useState } from "react";
 
 export default function TradePage() {
+  const [symbols, setSymbols] = useState<any[]>([]);
+  const [contracts, setContracts] = useState<any[]>([]);
+
+  // Your App ID wired in here:
+  const APP_ID = "332LK4VWd9A4pEEfTMn53";
+
+  useEffect(() => {
+    const ws = new WebSocket(
+      `wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`
+    );
+
+    ws.onopen = () => {
+      console.log("Connected to Deriv WebSocket");
+
+      ws.send(
+        JSON.stringify({
+          active_symbols: "brief",
+          product_type: "basic"
+        })
+      );
+
+      // Load contracts for Volatility 75 by default
+      ws.send(
+        JSON.stringify({
+          contracts_for: "R_75",
+          currency: "USD"
+        })
+      );
+    };
+
+    ws.onmessage = (msg) => {
+      const data = JSON.parse(msg.data);
+
+      console.log("Received:", data);
+
+      if (data.active_symbols) {
+        const synthetics = data.active_symbols.filter(
+          (s: any) => s.market === "synthetic_index"
+        );
+
+        setSymbols(synthetics);
+      }
+
+      if (data.contracts_for) {
+        setContracts(data.contracts_for.available || []);
+      }
+
+      if (data.error) {
+        console.error("Deriv API Error:", data.error);
+      }
+    };
+
+    ws.onerror = (err) => {
+      console.error("WebSocket Error:", err);
+    };
+
+    ws.onclose = () => {
+      console.log("WebSocket closed");
+    };
+
+    return () => ws.close();
+  }, []);
+
   return (
-    <main className="min-h-screen bg-gray-950 text-white flex">
+    <div className="p-6 text-white">
+      <h1 className="text-2xl mb-6">
+        Deriv Markets Loaded
+      </h1>
 
-      {/* Sidebar */}
-      <aside className="w-64 bg-gray-900 border-r border-gray-800 p-6">
-        <h1 className="text-2xl font-bold mb-8">
-          DigitPrinters
-        </h1>
+      <h2 className="text-xl mb-2">
+        Volatility Indices
+      </h2>
 
-        <nav className="space-y-4">
-          <Link href="/dashboard" className="block p-3 rounded-xl hover:bg-gray-800">
-            Dashboard
-          </Link>
-          <Link href="/trade" className="block p-3 rounded-xl bg-gray-800">
-            Trade
-          </Link>
-          <Link href="/bots" className="block p-3 rounded-xl hover:bg-gray-800">
-            Bots
-          </Link>
-          <Link href="/signals" className="block p-3 rounded-xl hover:bg-gray-800">
-            Signals
-          </Link>
-          <Link href="/portfolio" className="block p-3 rounded-xl hover:bg-gray-800">
-            Portfolio
-          </Link>
-        </nav>
-      </aside>
+      <ul className="mb-8">
+        {symbols.map((s) => (
+          <li key={s.symbol}>
+            {s.display_name}
+          </li>
+        ))}
+      </ul>
 
-      {/* Main Area */}
-      <section className="flex-1 p-8">
-        <h2 className="text-3xl font-bold mb-8">Manual Trading</h2>
+      <h2 className="text-xl mb-2">
+        Available Strategies
+      </h2>
 
-        <div className="grid grid-cols-2 gap-6">
-          {/* Order Form */}
-          <div className="bg-gray-900 rounded-2xl p-6 shadow-xl">
-            <h3 className="text-xl mb-4">Place Order</h3>
-
-            <div className="space-y-4">
-              <select className="w-full p-3 rounded-xl bg-gray-800">
-                <option>Volatility 75 Index</option>
-                <option>Volatility 100 Index</option>
-              </select>
-
-              <input
-                className="w-full p-3 rounded-xl bg-gray-800"
-                placeholder="Stake Amount ($)"
-                type="number"
-              />
-
-              <div className="flex gap-4">
-                <button className="flex-1 bg-green-600 p-3 rounded-xl">
-                  Buy
-                </button>
-                <button className="flex-1 bg-red-600 p-3 rounded-xl">
-                  Sell
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Market Info */}
-          <div className="bg-gray-900 rounded-2xl p-6 shadow-xl">
-            <h3 className="text-xl mb-4">Market Information</h3>
-            <p className="text-gray-400">Real-time market data will be displayed here.</p>
-          </div>
-        </div>
-      </section>
-    </main>
+      <ul>
+        {contracts.map((c, i) => (
+          <li key={i}>
+            {c.contract_type}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
